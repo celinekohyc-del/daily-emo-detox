@@ -1,36 +1,36 @@
-# PRD — Daily Emo Detox
+# Daily Emo Detox — Product Requirements
 
 ## Problem
-People hit emotional walls — stress, anxiety, anger, overwhelm — and have no quick, structured way to decompress. Generic wellness apps are too broad. They need a one-tap tool that gives them a concrete path back to calm.
+Stress, anxiety, and emotional overwhelm are daily realities for employees, business owners, and caregivers. There is no fast, focused tool that turns an emotion into a concrete, calming action in under 60 seconds.
 
-## Target Users
-Employees, business owners, homemakers — anyone who feels emotionally overloaded and wants a 5-minute reset, not a therapy session.
+## Target User
+Anyone feeling emotionally overloaded: employees, business owners, housewives, students — anyone who needs a quick reset without a therapist.
 
 ## Core Objects
 | Object | Purpose |
 |---|---|
-| `emotion` | One of 8 named feelings with an icon and colour |
-| `advice_card` | Structured coping content tied to an emotion |
-| `lead` | Visitor email + payment status |
-| `touchpoint` | Every emotion tap and advice view |
-| `audit_log` | Record of every meaningful system action |
+| `emotions` | The 8 selectable emotion icons |
+| `advice_cards` | AI-generated (or human-reviewed) coping advice per emotion |
+| `check_in_sessions` | One row per user emotion tap |
+| `leads` | Email + payment status |
+| `touchpoints` | Every meaningful interaction (capture, click, payment) |
+| `audit_logs` | Every agent or system action |
 
-## MVP Must-Haves
-- [ ] Homepage shows 8 emotion icons — no login required
-- [ ] Tap an emotion → see a full advice card (headline, body, breathing exercise, affirmation)
-- [ ] First tap is free; second tap triggers email capture
-- [ ] Email capture creates a `lead` row
-- [ ] Stripe checkout unlocks unlimited advice
-- [ ] Webhook marks `lead.paid_at` and `plan = 'paid'`
-- [ ] Every tap logged as a `touchpoint`
-- [ ] All buttons persist to DB; no dead UI
+## MVP Must-Haves (v1 checklist)
+- [ ] Homepage renders emotion icon grid without login
+- [ ] Tapping an emotion generates and stores a coping advice card
+- [ ] Advice card displayed with clear, actionable copy
+- [ ] Email capture gate before full advice is revealed
+- [ ] Stripe Checkout live and able to accept a real payment
+- [ ] Payment webhook updates lead to `paid` status
+- [ ] Seed data makes the app demoable on first load
 
 ## Non-Goals (v1)
-- User accounts / login
-- Mood history / calendar
-- Push notifications
-- Admin dashboard
-- Multi-language support
+- Per-user login or personal history dashboard
+- Mobile app or push notifications
+- Multiple pricing tiers or coupon codes
+- Mood trend charts or analytics
+- Team / bulk licensing
 
 ## Success Criteria
-A real visitor lands on the homepage, taps **Stressed**, reads the advice card, enters their email, clicks **Unlock Full Access**, completes Stripe checkout with a test card, and immediately sees the full advice card without any error — and `leads.paid_at` is set in the database.
+A visitor lands on the homepage, taps **Stressed**, sees a spinner then a coping advice card, enters their email, clicks **Unlock Full Access**, completes Stripe Checkout with a real card, and lands on the confirmation page — all within 3 minutes. The lead row in the database shows `subscription_status = paid` and a `paid_at` timestamp.

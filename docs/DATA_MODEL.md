@@ -1,15 +1,14 @@
-# Data Model — Daily Emo Detox
+# Data Model
 
 ## `emotions`
 | Field | Type | Notes |
 |---|---|---|
-| id | uuid PK | |
-| user_id | uuid | nullable, for future owner-scoping |
+| id | uuid PK | gen_random_uuid() |
+| user_id | uuid | nullable, future owner-scoping |
 | name | text | e.g. "Stressed" |
-| icon_emoji | text | e.g. "😫" |
-| color_hex | text | UI accent colour |
-| display_order | integer | grid sort order |
-| created_at | timestamptz | |
+| icon | text | emoji |
+| color | text | hex |
+| created_at | timestamptz | default now() |
 
 ## `advice_cards`
 | Field | Type | Notes |
@@ -17,28 +16,32 @@
 | id | uuid PK | |
 | user_id | uuid | nullable |
 | emotion_id | uuid FK → emotions | |
-| headline | text | e.g. "Release the pressure valve" |
-| body | text | **AI field** |
-| body_source | text | "seed" / "openai-gpt4" |
-| body_confidence | numeric | 0–1 |
-| body_review_status | text | "unreviewed" / "approved" / "rejected" |
-| breathing_exercise | text | |
-| affirmation | text | |
-| is_premium | boolean | gate flag |
+| advice_text | text | **AI field — value** |
+| advice_source | text | **AI field — source** (e.g. `openai-gpt-4o`) |
+| advice_confidence | numeric | **AI field — confidence** 0–1 |
+| advice_review_status | text | **AI field — review_status** (`unreviewed` / `approved` / `rejected`) |
+| created_at | timestamptz | |
+
+## `check_in_sessions`
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid | nullable |
+| emotion_id | uuid FK → emotions | |
+| advice_card_id | uuid FK → advice_cards | |
+| session_token | text | anonymous browser token |
 | created_at | timestamptz | |
 
 ## `leads`
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
-| user_id | uuid | nullable; linked at auth lock-down |
-| email | text | |
-| name | text | optional |
-| source_emotion_id | uuid FK → emotions | which emotion triggered capture |
-| stripe_session_id | text | |
-| stripe_customer_id | text | |
-| paid_at | timestamptz | null = free |
-| plan | text | "free" / "paid" |
+| user_id | uuid | nullable |
+| email | text | captured before payment |
+| subscription_status | text | `free` / `paid` |
+| stripe_customer_id | text | nullable |
+| stripe_session_id | text | nullable |
+| paid_at | timestamptz | nullable |
 | created_at | timestamptz | |
 
 ## `touchpoints`
@@ -46,11 +49,9 @@
 |---|---|---|
 | id | uuid PK | |
 | user_id | uuid | nullable |
-| lead_id | uuid FK → leads | nullable before email capture |
-| event_type | text | "emotion_tap" / "advice_view" / "lead_captured" / "checkout_started" / "payment_success" |
-| emotion_id | uuid FK → emotions | |
-| advice_card_id | uuid FK → advice_cards | nullable |
-| metadata | jsonb | any extra context |
+| lead_id | uuid FK → leads | |
+| event_type | text | `email_captured`, `checkout_started`, `payment_completed` |
+| metadata | jsonb | page, amount, etc. |
 | created_at | timestamptz | |
 
 ## `audit_logs`
@@ -58,13 +59,14 @@
 |---|---|---|
 | id | uuid PK | |
 | user_id | uuid | nullable |
-| actor | text | "system" / "admin" / user id |
-| action | text | e.g. "stripe_webhook_received" |
-| target_table | text | |
-| target_id | uuid | |
-| payload | jsonb | |
-| risk_level | text | "low" / "medium" / "high" / "critical" |
+| action | text | e.g. `advice_generated`, `payment_webhook_received` |
+| entity_type | text | table name |
+| entity_id | uuid | row acted on |
+| risk_level | text | `low` / `medium` / `high` / `critical` |
+| metadata | jsonb | full payload snapshot |
 | created_at | timestamptz | |
 
-## RLS (v1 — demo-first)
-All tables: permissive read + write for anonymous visitors. Replaced with owner-scoped policies in the Lock-Down sprint.
+## RLS Notes
+- All tables: v1 permissive (read + write open for demo).
+- Lock-down sprint replaces with `auth.uid() = user_id` owner policies.
+- `audit_logs` will become admin-only read in lock-down sprint.

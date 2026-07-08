@@ -1,29 +1,30 @@
-# Architecture — Daily Emo Detox
+# Architecture
 
 ## Stack
 - **Frontend:** Next.js 14 (App Router) on Vercel
-- **Database + Auth:** Supabase (Postgres + RLS)
+- **Database + Auth:** Supabase (Postgres + Row-Level Security)
 - **Payments:** Stripe Checkout + Webhooks
-- **AI (later):** OpenAI via server-side route only
+- **AI:** OpenAI GPT-4o via a Next.js server-side API route
 
-## What Gets Built Now vs Later
-**Now:** emotion grid → advice card → email capture → Stripe checkout → paid access gate 
-**Later:** user auth, mood history, AI-personalised advice, admin dashboard, reminders
+## What Is Built Now vs Later
+**Now:** emotion grid → advice generation → email capture → Stripe payment — all without login.
+**Later:** per-user auth, personal history, admin dashboard, email drips.
 
-## Key User Action — Step by Step
-1. Visitor loads `/` — Supabase returns `emotions` rows — grid renders
-2. Visitor taps an emotion icon — client queries `advice_cards` by `emotion_id`
-3. `touchpoint` row written (event: `emotion_tap`)
-4. First tap: full card shown. Second tap: email capture modal shown
-5. Email submitted → `leads` row created → `touchpoint` row written (event: `lead_captured`)
-6. Visitor clicks **Unlock** → `/api/checkout` creates Stripe session → redirect
-7. Stripe webhook hits `/api/webhook` → `leads.paid_at` set, `plan = 'paid'` → audit log written
-8. Visitor redirected to `/success` → paid gate removed → full advice visible
+## Key User Action — Step-by-Step
+1. Visitor taps an emotion icon on the homepage.
+2. Next.js API route `/api/advice` receives `emotion_id`.
+3. Server calls OpenAI, stores result in `advice_cards` (with source, confidence, review_status).
+4. New row in `check_in_sessions` links emotion → advice card → anonymous session token.
+5. Frontend receives advice text; teaser shown immediately.
+6. Email capture modal appears; lead row inserted into `leads`.
+7. User clicks "Unlock Full Access" → server creates Stripe Checkout session (price from env var, never in client).
+8. On payment success, Stripe webhook fires → server updates `leads.subscription_status = paid`, logs to `audit_logs`.
+9. Confirmation page renders; full advice card displayed.
 
 ## Layer Plan
-1. **Data first:** tables + seed data + RLS policies
-2. **App logic:** fetch, gate, and write — all server-side routes; no secrets in the browser
-3. **Smart features later:** AI advice generation with approval flow
+1. **Data layer first** — tables, constraints, RLS policies, seed data.
+2. **App logic** — API routes, CRUD, Stripe webhook; core runs with AI disabled (fallback to seeded advice).
+3. **Intelligence on top** — OpenAI advice generation, confidence scoring, review queue.
 
-## Core Without AI
-All 8 advice cards are hand-written seed data. Removing the AI layer leaves a fully functional, chargeable product.
+## AI-Off Fallback
+If the OpenAI call fails, the API route returns the highest-confidence seeded advice card for that emotion. The core flow never breaks.

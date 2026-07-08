@@ -1,6 +1,6 @@
 # daily-emo-detox
 
-Daily Emo Detox is a paid micro-tool where users tap an emotion icon, receive personalised coping advice, and unlock full access via a one-time or subscription checkout.
+Daily Emo Detox is a micro-tool where users tap an emotion icon, receive AI-backed coping advice, and unlock unlimited access via a one-time or subscription payment.
 
 ## ⚠️ READ THIS BEFORE WRITING ANY CODE
 A complete, correct plan for this app is already committed in `/docs`. Do **not** start
@@ -46,10 +46,9 @@ build the wrong thing (e.g. a marketing landing page). Open the plan and build f
   the next deploy.
 - **The Supabase database is already provisioned** and its keys are in this project's Vercel
   env. Pull them locally: `vercel link` then `vercel env pull .env.local`. Don't invent new ones.
-- **Your database is already set up.** The schema from your data model has been applied to
-  this project's Supabase database and committed at `supabase/migrations/0001_init.sql`. Build on
-  the existing tables — **do not recreate them**. To change the schema, add a NEW migration file
-  (`supabase/migrations/0002_*.sql`) and apply it; never edit `0001`.
+- **Database-first:** the schema is written at `supabase/migrations/0001_init.sql` but **not yet
+  applied**. Apply it to this project's Supabase database BEFORE building features (e.g. paste it into
+  the Supabase SQL editor, or `supabase db push`). Don't build local-only / in-memory.
 - **Commit as your GitHub identity, or Vercel will block the deploy.** Vercel verifies that
   every commit's author email belongs to your GitHub account. Your machine's default git email
   often isn't, so the very first local commit gets rejected. Pin this repo's identity once

@@ -1,34 +1,35 @@
-# Test Plan — Daily Emo Detox
+# Test Plan
 
-## v1 Success Scenario (Manual)
-1. Open `/` in incognito — emotion grid renders (8 icons visible)
-2. Tap **Stressed** — advice card appears with headline, body, breathing exercise, affirmation
-3. Check Supabase `touchpoints` — one row with `event_type = 'emotion_tap'`
-4. Tap **Anxious** — email capture modal appears
-5. Submit `test@example.com` — modal closes, advice card shown (partial access)
-6. Check `leads` table — one row, `source_emotion_id` matches Anxious, `paid_at` null
-7. Click **Unlock Full Access** — redirected to Stripe Checkout
-8. Enter card `4242 4242 4242 4242`, any future date, any CVC — complete payment
-9. Redirected to `/success` — confirmation message shown
-10. Check `leads` table — `paid_at` is set, `plan = 'paid'`
-11. Check `audit_logs` — row with `action = 'payment_success'`
-12. Return to `/` — tap any emotion — no modal appears, full card shown immediately
+## Core Success Scenario (manual)
+1. Open `/` in an incognito browser window.
+2. **Verify:** 8 emotion icon cards are visible. No login prompt.
+3. Click **Stressed**.
+4. **Verify:** Loading spinner appears immediately.
+5. **Verify:** Within 5 seconds an advice card appears with non-empty text.
+6. **Verify:** `advice_cards` table has a new row; `advice_confidence` is populated.
+7. **Verify:** Email capture modal appears.
+8. Enter `test@example.com` and submit.
+9. **Verify:** `leads` row inserted with `subscription_status = free`; touchpoint `email_captured` logged.
+10. Click **Unlock Full Access**.
+11. **Verify:** Redirected to Stripe Checkout (test mode).
+12. Enter Stripe test card `4242 4242 4242 4242`, any future date, any CVC.
+13. Complete payment.
+14. **Verify:** Redirected to `/success` with confirmation copy.
+15. **Verify:** `leads` row now shows `subscription_status = paid` and `paid_at` is not null.
+16. **Verify:** `touchpoints` has `payment_completed` event.
+17. **Verify:** `audit_logs` has `payment_webhook_received` entry.
 
-## Empty States
-- Delete all emotion rows → homepage shows "No emotions found. Check back soon."
-- Submit email capture with blank email → inline error "Please enter a valid email"
-- Stripe webhook with wrong signature → 400 returned, no DB write, audit_log records failure attempt
+## Empty State
+- Delete all rows from `emotions` (dev only). Visit `/`. **Expect:** empty-state message "No emotions loaded yet" — no crash.
 
 ## Error States
-- Supabase offline → advice card shows "Unable to load advice right now. Please try again."
-- Stripe session creation fails → user sees "Checkout unavailable — please try again or contact support."
-- Duplicate email submit → no duplicate `leads` row created; user sees success (idempotent)
+- Set `OPENAI_API_KEY` to an invalid value. Tap an emotion. **Expect:** fallback seeded advice card is served; error toast "Advice loaded from cache"; no 500 shown to user.
+- Submit email capture form with an invalid email. **Expect:** inline validation error; no DB insert.
+- Cancel Stripe Checkout mid-flow. **Expect:** user returned to advice card page; `leads` row remains `free`; no duplicate rows.
 
-## Permission Check (Sprint 4)
-- Log in as User A → tap emotions → log out → log in as User B → verify User B's `touchpoints` query returns 0 rows from User A
-- Unauthenticated request to `leads` table via Supabase client → returns empty result (RLS blocks)
+## Stripe Webhook
+- Replay a `checkout.session.completed` event via Stripe CLI. **Expect:** `leads` updated to `paid` exactly once (idempotent — replaying does not create duplicate rows).
 
-## Never Mark Done Until
-- Every button click persists a real row (verified in Supabase table viewer)
-- Stripe test payment confirmed in Stripe dashboard + `leads.paid_at` set
-- No `.env` values logged or exposed in browser network tab
+## Security Checks
+- Inspect browser network tab: confirm `STRIPE_SECRET_KEY` and `OPENAI_API_KEY` are never present in any response or JS bundle.
+- Confirm Stripe webhook returns 400 if signature header is missing or tampered.

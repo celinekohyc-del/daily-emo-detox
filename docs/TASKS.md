@@ -1,84 +1,70 @@
-# Tasks — Daily Emo Detox
+# Tasks & Sprints
 
-## Sprint 1 — DB, Emotion Engine & Demo Page
-**Goal:** Anonymous visitor can tap any emotion and see a real advice card from the database.
+## Sprint 1 — DB, Emotion Grid & Advice Engine
+**Goal:** Core engine works end-to-end, demoable without login.
 
-- [ ] Run migration SQL (emotions, advice_cards, leads, touchpoints, audit_logs)
-- [ ] Seed 8 emotions + 8 advice cards with realistic copy
-- [ ] Build `/` page: emotion icon grid (8 icons, coloured, labelled)
-- [ ] Handle all states: loading skeleton, empty (no emotions found), error (DB unreachable), ready
-- [ ] Tap emotion → query `advice_cards` by `emotion_id` → render advice card
-- [ ] Advice card shows: headline, body, breathing exercise, affirmation
-- [ ] Write `touchpoint` row on every tap (event: `emotion_tap`)
-- [ ] Confirm seed rows are CRUD-able (not hardcoded in UI)
+- [ ] Run migration SQL (all tables, seed data, v1 RLS policies)
+- [ ] Build homepage `/` with 8 emotion icon cards (from `emotions` table)
+- [ ] Implement all five states: loading skeleton, empty (no emotions in DB), partial (advice loading), error toast (AI failed), ready (advice card shown)
+- [ ] Build `/api/advice` POST route: receive `emotion_id`, call OpenAI, store `advice_cards` row, store `check_in_sessions` row, return advice text
+- [ ] AI fallback: if OpenAI fails, return highest-confidence approved card for that emotion
+- [ ] Write `audit_log` row on every advice generation
+- [ ] Verify seeded advice cards render on page load without any user action
 
-**Definition of Done:** Anonymous user taps Stressed → advice card renders with DB data → touchpoint row exists in Supabase table viewer.
-
----
-
-## Sprint 2 — Lead Capture & Touchpoint Logging
-**Goal:** Second tap gates on email; lead is stored with source emotion.
-
-- [ ] Track tap count in session (not DB)
-- [ ] Second tap → email capture modal (name optional, email required)
-- [ ] Submit → POST `/api/leads` → insert `leads` row → insert `touchpoint` (event: `lead_captured`)
-- [ ] Validate email server-side; return 400 on bad format
-- [ ] Modal states: idle, submitting, success, error
-- [ ] Empty state: if lead already exists for email, skip duplicate insert
-
-**Definition of Done:** Submit email → `leads` row in DB with `source_emotion_id` set → `touchpoint` row with `lead_id` linked.
+**Definition of Done:** Visiting `/` shows 8 emotion icons. Clicking "Stressed" produces a coping advice card within 5 seconds. The `advice_cards` table gains a new row. The `check_in_sessions` table gains a new row. If OpenAI is disabled, a seeded card is served instead. No dead buttons.
 
 ---
 
-## Sprint 3 — Stripe Checkout & Paid Access Gate ✅ v1 FUNCTIONAL MILESTONE
-**Goal:** Real payment unlocks unlimited advice; webhook updates DB.
+## Sprint 2 — Lead Capture & Stripe Payment ✅ v1 functional milestone
+**Goal:** App can capture an email and take a real payment.
 
-- [ ] Add `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` to Vercel env
-- [ ] `/api/checkout` — create Stripe Checkout session (price hard-coded v1), return URL
-- [ ] `/api/webhook` — verify signature → set `leads.paid_at`, `plan = 'paid'` → write audit_log
-- [ ] Gate: unpaid leads see modal after tap 1; paid leads see all cards freely
-- [ ] `/success` page — confirms payment, shows next emotion invite
-- [ ] `/cancel` page — friendly message, retry CTA
-- [ ] Test with Stripe test card `4242 4242 4242 4242`
+- [ ] Email capture modal: appears after emotion tap, before full advice revealed
+- [ ] `POST /api/leads` — insert lead row, insert `email_captured` touchpoint
+- [ ] "Unlock Full Access" CTA on advice card (disabled for paid leads, active for free)
+- [ ] `POST /api/checkout` — create Stripe Checkout session server-side, return URL
+- [ ] Stripe webhook `POST /api/webhook/stripe` — verify signature, update `leads.subscription_status = paid`, set `paid_at`, log `payment_completed` touchpoint + audit log
+- [ ] Payment confirmation page `/success` with clear copy
+- [ ] Test with Stripe test card end-to-end
+- [ ] Error state: Stripe failure shows user-friendly message, no DB mutation
 
-**Definition of Done:** Test card charged → `leads.paid_at` set in DB → full advice card visible without modal → audit_log row with `action = 'payment_success'`.
-
----
-
-## Sprint 4 — Auth & Per-User Lock-Down
-**Goal:** Users have accounts; their data is isolated.
-
-- [ ] Enable Supabase Auth (email/password)
-- [ ] `/signup` and `/login` pages
-- [ ] On sign-in, link existing `leads` row to `auth.uid()` via `user_id`
-- [ ] Replace all v1 permissive RLS policies with `auth.uid() = user_id`
-- [ ] Paid gate reads from authenticated session + `leads` table
-- [ ] Test: two accounts cannot read each other's touchpoints
-
-**Definition of Done:** User A and User B see only their own data after login; unauthenticated DB query returns 0 rows on protected tables.
+**Definition of Done:** A visitor taps Stressed → enters email → clicks Unlock → completes Stripe test checkout → lands on `/success` → `leads` row shows `subscription_status = paid` and a `paid_at` timestamp. The Stripe dashboard shows the test payment. Total flow under 3 minutes.
 
 ---
 
-## Sprint 5 — Admin Dashboard & AI Advice
-**Goal:** Builder can see leads and manage AI-generated advice.
+## Sprint 3 — Auth & Lock-Down
+**Goal:** Per-user data isolation; paid access enforced server-side.
 
-- [ ] `/admin` page (route-guarded to builder email)
-- [ ] Leads table: email, emotion, paid status, touchpoint count, created_at
-- [ ] Touchpoints feed: chronological event list
-- [ ] AI draft: call OpenAI per emotion → insert advice_card with `body_review_status = 'unreviewed'`
-- [ ] Admin approve / reject draft → set `body_review_status`
-- [ ] Only `approved` cards shown to visitors
-- [ ] Audit log viewer
+- [ ] Enable Supabase Auth (magic-link email)
+- [ ] Sign-up / login page `/login`
+- [ ] On login, match `leads.email` to auth user, set `user_id` on existing rows
+- [ ] Replace v1 permissive RLS with owner-scoped policies (`auth.uid() = user_id`)
+- [ ] Personal check-in history page `/history` (auth-gated)
+- [ ] Server-side middleware: paid content checks `leads.subscription_status` from session, not client state
+- [ ] Confirm anonymous demo rows remain intact (seed data unaffected)
 
-**Definition of Done:** Admin approves AI draft → card live for visitors. Rejected draft never appears. Audit log shows every approval action.
+**Definition of Done:** Logging in as a paid user shows personal history. Logging in as a free user cannot access paid advice. RLS blocks cross-user reads. Seed demo data still renders for anonymous visitors.
 
 ---
 
-## Gantt (Sprint → Feature)
-```
-Sprint 1:  Emotion grid, advice card, touchpoint logging
-Sprint 2:  Email capture, lead creation, session tap gate
-Sprint 3:  Stripe checkout, webhook, paid gate          ← v1 FUNCTIONAL
-Sprint 4:  Auth, login, RLS lock-down
-Sprint 5:  Admin dashboard, AI advice drafts
-```
+## Sprint 4 — Admin, Touchpoints & Review Queue
+**Goal:** Builder can see leads, conversions, and manage AI advice quality.
+
+- [ ] Admin route `/admin` (service-role only, env-gated)
+- [ ] Leads table: email, status, paid_at, check-in count
+- [ ] Touchpoints timeline per lead
+- [ ] Advice review queue: cards with `review_status = unreviewed` and confidence < 0.85
+- [ ] Approve / reject buttons update `advice_review_status` + audit log (medium risk — confirm before write)
+- [ ] Top-5 emotions tapped (count from `check_in_sessions`)
+- [ ] Conversion rate: paid / total leads
+
+**Definition of Done:** Admin page loads with real data. Approving a flagged advice card updates the DB and the row disappears from the queue. All actions logged in `audit_logs`.
+
+---
+
+## Gantt (sprint → week)
+| Week | Sprint |
+|---|---|
+| 1 | Sprint 1 — DB + Emotion Grid + Advice Engine |
+| 1–2 | Sprint 2 — Lead Capture + Stripe (v1 functional) |
+| 2 | Sprint 3 — Auth + Lock-Down |
+| 3 | Sprint 4 — Admin + Review Queue |
