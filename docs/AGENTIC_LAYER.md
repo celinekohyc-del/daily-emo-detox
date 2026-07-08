@@ -1,35 +1,35 @@
 # Agentic Layer — Daily Emo Detox
 
-## Risk Tiers
+## Risk Levels & Actions
 
-### Low — Auto (no approval needed)
-- Tag a session with recurring-emotion flag
-- Score a lead as high-intent or cold
-- Select the best-matching advice row for an emotion tap
+### Low — Auto (no approval)
+- Tag new advice row with emotion category
+- Score advice confidence and set review_status
+- Summarize weekly emotion usage for admin view
 
 ### Medium — Light Approval
-- Draft a follow-up email to a cold lead (builder reviews before send)
-- Suggest a new advice row based on low-rated sessions
+- Draft follow-up email to unconverted lead (builder reviews before send)
+- Flag advice row as 'needs_review' and surface in admin queue
 
-### High — Always Approval
-- Send email to a lead or subscriber
-- Apply a discount coupon via Stripe API
+### High — Approval Required
+- Send marketing email to lead list
+- Upgrade or downgrade a subscription plan
 
 ### Critical — Human Only
-- Issue a refund via Stripe
-- Delete a user account or any subscription record
-- Export PII data
+- Issue refund via Stripe
+- Delete user data / GDPR erasure
+- Modify Stripe webhook config
 
-## Named Tools (v1)
-- `select_advice(emotion_id)` — query advice table, return best match
-- `write_session(emotion_id, advice_id, fingerprint)` — insert session row
-- `capture_lead(email, source)` — insert lead row
-- `create_stripe_checkout(plan)` — server-side Stripe API call
-- `upsert_subscription(stripe_payload)` — webhook handler
+## Named Tools (approved list)
+- `generate_advice(emotion_id)` — calls OpenAI, stores result with source/confidence
+- `flag_advice(advice_id, reason)` — sets review_status
+- `create_checkout_session(email, plan)` — Stripe Checkout via Edge Function
+- `update_subscription(stripe_event)` — webhook handler only
+- `log_action(table, row_id, action, actor)` — writes to audit_logs
 
 ## Audit Log Fields
-`id, actor_type (user|system), actor_id, action, target_table, target_id, payload_snapshot, risk_level, created_at`
+`id, created_at, actor_id, actor_type (user/system/webhook), table_name, row_id, action, payload_json`
 
 ## v1 vs Later
-- v1: tools 1–5 only, all invoked by user action
-- Later: scheduled agent checks churn risk daily, drafts win-back email for approval
+**v1:** generate_advice + create_checkout_session + update_subscription + log_action 
+**Later:** auto-email drip, usage trend summaries, churn-risk alerts

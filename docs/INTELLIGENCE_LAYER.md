@@ -1,39 +1,36 @@
 # Intelligence Layer — Daily Emo Detox
 
 ## Messy Input
-User taps an emotion icon — no free text, no context. The structured signal is: `emotion_id + timestamp + fingerprint`.
+User taps an emotion icon — no free text, highly structured by design.
 
-## Auto-Structure Schema (per session event)
+## Auto-Structure (advice generation)
 ```json
 {
-  "emotion_id": "uuid",
-  "label": "Overwhelmed",
-  "hour_of_day": 14,
-  "day_of_week": "Tuesday",
-  "tap_index_today": 2,
-  "paid_user": false
+  "emotion": "Stressed",
+  "category": "stress",
+  "advice_body": "Take 4 slow breaths…",
+  "source": "openai-gpt4",
+  "confidence": 0.87,
+  "review_status": "unreviewed"
 }
 ```
 
 ## Events to Track
-- `emotion_tapped` — every tap
-- `paywall_shown` — tap limit hit
-- `lead_captured` — email entered
-- `checkout_started` — Stripe redirect
-- `subscription_activated` — webhook confirmed
+- Emotion tapped (emotion_id, timestamp, visitor_token)
+- Advice displayed (advice_id, session_id)
+- Paywall hit (session count, touchpoint)
+- Email captured
+- Checkout started / completed
 
-## Scoring Rules (rule-based v1)
-- **Hot emotion:** emotion tapped >3× in one day → flag as recurring
-- **Conversion lead score:** lead_captured + checkout_started within 10 min = high-intent
-- **Churn risk:** active subscriber with 0 sessions in 7 days = at-risk
+## Scoring Rules (rule-based first)
+- **Usage score:** sessions this week (low <3, medium 3–7, high 7+)
+- **Conversion score:** lead captured + paywall shown → flag for follow-up email
+- **Advice quality:** confidence < 0.7 → auto-flag review_status = 'needs_review'
 
 ## What Gets Ranked
-- Advice cards: most-tapped emotions surface first in the grid (sort by session count)
+- Advice rows sorted by confidence DESC per emotion
+- Top-ranked unreviewed advice surfaced first in admin queue
 
 ## v1 vs Later
-| Feature | v1 | Later |
-|---|---|---|
-| Advice text | Static seed | OpenAI-generated, stored with confidence score |
-| Emotion ranking | Session count | ML-weighted by time-of-day & user history |
-| Personalisation | None | Per-user emotion pattern summary |
-| Mood trend | None | Weekly chart from sessions |
+**v1:** Seeded advice; OpenAI fallback on cache miss; rule-based flagging 
+**Later:** Personalized advice based on repeat emotions; sentiment trend over time; A/B advice variants

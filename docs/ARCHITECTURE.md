@@ -1,28 +1,29 @@
 # Architecture — Daily Emo Detox
 
 ## Stack
-| Layer | Choice |
-|---|---|
-| Frontend | Next.js 14 (App Router) on Vercel |
-| Database | Supabase (Postgres + RLS) |
-| Auth | Supabase Auth (added in lock-down sprint) |
-| Payments | Stripe Checkout + Webhooks |
-| AI (later) | OpenAI via server-side route only |
+- **Frontend:** Next.js 14 (App Router) on Vercel
+- **Backend/DB:** Supabase (Postgres + Auth + Edge Functions)
+- **Payments:** Stripe Checkout + Webhooks
+- **AI:** OpenAI via Supabase Edge Function (server-side only)
 
-## Build Sequence
-**Now:** Emotion grid → tap → advice → session write → paywall → Stripe → unlock
-**Next:** Auth, per-user session history, lead nurture emails
-**Later:** AI-generated personalised advice, mood trend dashboard
+## Now vs Later
+**Now:** Emotion picker → advice card → email capture → Stripe checkout → session log 
+**Later:** Auth + per-user history, AI advice regeneration, admin dashboard, usage analytics
 
-## Key User Action — Step-by-Step
-1. Visitor opens homepage; emotion grid loads from `emotions` table (seeded).
-2. User taps an emotion icon → client posts to `/api/sessions` → row written to `sessions`.
-3. Server checks today's tap count for this browser fingerprint/user.
-4. If under limit → fetch matching advice row → return to UI → display card.
-5. If at limit → return `paywall: true` → UI opens paywall modal → lead email captured to `leads`.
-6. User clicks Pay → server creates Stripe Checkout session → redirect.
-7. Stripe webhook hits `/api/webhooks/stripe` → `subscriptions` row upserted → user flagged as paid.
-8. User returns, tap limit lifted, advice flows freely.
+## Key User Action — Step by Step
+1. Visitor opens `/` — emotion grid renders from `emotions` table (seeded)
+2. User taps an emotion icon → client POST to `/api/session`
+3. Edge Function queries `advice` table for that emotion; falls back to OpenAI if none found
+4. Advice card rendered; session row inserted into `sessions`
+5. After 3rd free session, paywall modal appears; user enters email → `leads` row upserted
+6. User clicks "Go Pro" → server creates Stripe Checkout session → redirect
+7. Stripe webhook fires → `subscriptions` row updated to `pro`
+8. User returns to app; session limit lifted
 
-## Why It Runs Without AI
-All advice rows are seeded static text. AI enrichment (Sprint 5+) only adds an alternative `advice` value alongside the original — the rule-based path always wins if AI is off.
+## Layer Plan
+1. **Data first** — all tables + seed advice rows
+2. **App logic** — session counting, paywall gate, Stripe flow
+3. **Smart features** — AI fallback advice, confidence scoring, admin review queue
+
+## Core Without AI
+All seeded advice rows serve without any OpenAI call. AI is an enhancement, not a dependency.

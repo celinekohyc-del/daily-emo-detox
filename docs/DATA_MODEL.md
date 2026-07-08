@@ -4,55 +4,56 @@
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
-| label | text | e.g. "Stressed" |
-| icon_emoji | text | e.g. "😤" |
-| category | text | e.g. "work", "home", "social" |
-| sort_order | int | display order |
+| user_id | uuid nullable | owner scope (lock-down sprint) |
 | created_at | timestamptz | |
+| label | text | e.g. "Stressed" |
+| icon_url | text | emoji or image path |
+| category | text | stress/anger/sadness/anxiety/overwhelm |
+| sort_order | int | display order |
 
 ## advice
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
-| emotion_id | uuid → emotions | |
-| body | text | the calming advice text |
-| tier | text | 'free' or 'paid' |
-| ai_body | text | AI-generated alternative |
-| ai_body_source | text | model + prompt version |
-| ai_body_confidence | numeric | 0–1 |
-| ai_body_review_status | text | default 'unreviewed' |
-| user_id | uuid nullable | owner scope (post lock-down) |
+| user_id | uuid nullable | |
 | created_at | timestamptz | |
+| emotion_id | uuid → emotions | |
+| body | text | coping advice copy |
+| body_source | text | "openai-gpt4" / "human" |
+| body_confidence | numeric | 0–1 |
+| body_review_status | text | default 'unreviewed' |
 
 ## sessions
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
-| user_id | uuid nullable | null for anonymous |
+| user_id | uuid nullable | |
+| created_at | timestamptz | |
 | emotion_id | uuid → emotions | |
 | advice_id | uuid → advice | |
-| fingerprint | text | browser fingerprint for anon rate-limit |
-| created_at | timestamptz | |
+| visitor_token | text | anon browser fingerprint |
 
 ## leads
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
 | user_id | uuid nullable | |
-| email | text | |
-| source | text | e.g. 'paywall_modal' |
 | created_at | timestamptz | |
+| email | text unique | |
+| touchpoint | text | e.g. "paywall-modal" |
+| converted | boolean default false | |
 
 ## subscriptions
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
 | user_id | uuid nullable | |
+| created_at | timestamptz | |
+| email | text | |
+| plan | text | 'free' / 'pro' |
 | stripe_customer_id | text | |
 | stripe_subscription_id | text | |
-| status | text | 'active','canceled','past_due' |
-| plan | text | 'monthly','lifetime' |
-| created_at | timestamptz | |
+| status | text | 'active' / 'canceled' / 'trialing' |
 
 ## RLS
-All tables: RLS enabled. v1 permissive policies (select + all using true). Lock-down sprint replaces with `auth.uid() = user_id`.
+All tables: RLS enabled. v1 permissive policies (select/all = true). Lock-down sprint replaces with `auth.uid() = user_id`.
