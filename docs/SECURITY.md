@@ -1,21 +1,21 @@
-# Security
+# Security — Daily Emo Detox
 
 ## Secret Handling
-- `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` — server-side env vars only. Never in `NEXT_PUBLIC_*`.
-- Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` exposed to the client (safe by design).
-- Stripe Checkout session created server-side via `/api/checkout`; client receives only the redirect URL.
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` live in Vercel environment variables only — never in client bundles or committed to git.
+- All Stripe calls happen in `/api/*` server routes; the client only receives a Checkout URL.
+- Supabase anon key is safe to expose; service-role key is server-only.
 
-## Permission Model (v1 → lock-down)
-- v1: RLS policies are permissive for demo (open read + write).
-- Lock-down sprint: every table gets `auth.uid() = user_id` for write; `paid` leads can read their own advice cards.
-- `audit_logs` becomes admin-read-only.
-- Stripe webhooks verified with `STRIPE_WEBHOOK_SECRET` before any DB write.
+## Permission Model
+- v1: permissive RLS (read/write open for demo). No sensitive PII at risk until lock-down sprint.
+- Lock-down sprint: replace all v1 policies with `auth.uid() = user_id`. Subscription status read server-side only.
+- Anonymous sessions identified by browser fingerprint — no personal data stored until email captured.
 
 ## Approved-Tools Rule
-No agent or API route may call arbitrary external services. Only the named tools in AGENTIC_LAYER.md are permitted. New tools require an explicit addition to that list.
+- Agents and server routes call only the named tools in `AGENTIC_LAYER.md`.
+- No `eval`, no raw SQL from user input, no dynamic `fetch` to arbitrary URLs.
+- Stripe webhook endpoint validates signature before processing any payload.
 
 ## Audit Principle
-Every meaningful state change (advice generated, payment received, status updated) writes a row to `audit_logs` before the response is returned. No fire-and-forget mutations.
-
-## Payments — Stop and Verify
-Stripe integration touches real money. Before going live: verify webhook signature validation works with Stripe CLI, confirm idempotency key on checkout session creation, and test refund flow manually in Stripe dashboard. Do not shortcut this.
+- Every meaningful write (session, lead, subscription change) appends a row to `audit_logs`.
+- Audit rows are insert-only — no update or delete policy on that table, ever.
+- High/critical actions require a second human confirmation step before execution.

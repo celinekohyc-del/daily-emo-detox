@@ -1,36 +1,35 @@
-# Agentic Layer
+# Agentic Layer — Daily Emo Detox
 
-## Risk Levels & Actions
+## Risk Tiers
 
-### Low — auto-execute, log only
-- `generate_advice_card` — call OpenAI, store result, serve to user
-- `tag_emotion_session` — write check_in_session row
-- `score_advice_confidence` — attach confidence to advice_card row
+### Low — Auto (no approval needed)
+- Tag a session with recurring-emotion flag
+- Score a lead as high-intent or cold
+- Select the best-matching advice row for an emotion tap
 
-### Medium — light approval (admin confirms before run)
-- `update_advice_review_status` — approve or reject a flagged advice card
-- `create_touchpoint_event` — log a lead interaction
+### Medium — Light Approval
+- Draft a follow-up email to a cold lead (builder reviews before send)
+- Suggest a new advice row based on low-rated sessions
 
-### High — always requires approval before execution
-- `send_email_to_lead` — any outbound email (drip, confirmation)
-- `create_stripe_checkout` — initiates a charge flow (server-side only, never from client)
+### High — Always Approval
+- Send email to a lead or subscriber
+- Apply a discount coupon via Stripe API
 
-### Critical — human-only, no agent execution
-- `refund_payment` — Stripe refund, must be done by builder in Stripe dashboard
-- `delete_lead` — permanent removal, requires explicit human action
-- `export_all_leads` — bulk PII export
+### Critical — Human Only
+- Issue a refund via Stripe
+- Delete a user account or any subscription record
+- Export PII data
 
-## Named Tools (approved list)
-| Tool | Risk | v1? |
-|---|---|---|
-| `openai_chat_completion` | low | yes |
-| `supabase_insert` | low | yes |
-| `stripe_create_checkout_session` | high | yes |
-| `stripe_webhook_verify` | low | yes |
-| `send_transactional_email` | high | later |
+## Named Tools (v1)
+- `select_advice(emotion_id)` — query advice table, return best match
+- `write_session(emotion_id, advice_id, fingerprint)` — insert session row
+- `capture_lead(email, source)` — insert lead row
+- `create_stripe_checkout(plan)` — server-side Stripe API call
+- `upsert_subscription(stripe_payload)` — webhook handler
 
 ## Audit Log Fields
-Every agent action writes: `action`, `entity_type`, `entity_id`, `risk_level`, `metadata` (full payload), `created_at`, `user_id` (null if anonymous).
+`id, actor_type (user|system), actor_id, action, target_table, target_id, payload_snapshot, risk_level, created_at`
 
-## Approval Flow
-Draft → stored in `audit_logs` with status `pending` → admin confirms → action executes → status updated to `completed`.
+## v1 vs Later
+- v1: tools 1–5 only, all invoked by user action
+- Later: scheduled agent checks churn risk daily, drafts win-back email for approval

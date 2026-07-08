@@ -1,70 +1,56 @@
-# Tasks & Sprints
+# Tasks — Daily Emo Detox
 
-## Sprint 1 — DB, Emotion Grid & Advice Engine
-**Goal:** Core engine works end-to-end, demoable without login.
+## Sprint 1 — DB + Emotion Grid (demo-first)
+**Goal:** App loads with emotion icons and advice visible to any visitor.
+- Create Supabase project; run migration SQL
+- Seed 10 emotions + 2 advice rows each
+- Build `/` page: emotion icon grid (loading / empty / ready states)
+- Tap emotion → fetch advice → show advice card (no login required)
+- Error state: advice fetch fails → show friendly retry message
+- Write session row on every tap
+**DoD:** Visitor taps any emotion and sees advice; `sessions` table gains a row; no login required.
 
-- [ ] Run migration SQL (all tables, seed data, v1 RLS policies)
-- [ ] Build homepage `/` with 8 emotion icon cards (from `emotions` table)
-- [ ] Implement all five states: loading skeleton, empty (no emotions in DB), partial (advice loading), error toast (AI failed), ready (advice card shown)
-- [ ] Build `/api/advice` POST route: receive `emotion_id`, call OpenAI, store `advice_cards` row, store `check_in_sessions` row, return advice text
-- [ ] AI fallback: if OpenAI fails, return highest-confidence approved card for that emotion
-- [ ] Write `audit_log` row on every advice generation
-- [ ] Verify seeded advice cards render on page load without any user action
+## Sprint 2 — Tap Limit + Paywall Modal ✦ v1 functional milestone
+**Goal:** Free cap enforced; Stripe Checkout live; subscription unlocks access.
+- Fingerprint-based daily tap counter (server-side check)
+- 4th tap returns `paywall: true` → UI opens paywall modal
+- Paywall modal: email capture form → inserts `leads` row
+- "Unlock Full Access" button → `/api/checkout` → Stripe Checkout session
+- Stripe webhook `/api/webhooks/stripe` → upsert `subscriptions`
+- Return URL detects active subscription → bypasses paywall
+- All five UI states handled on paywall modal (loading, empty, error, partial, ready)
+**DoD:** Full end-to-end scenario from PRD passes in a real browser with a real Stripe test payment.
 
-**Definition of Done:** Visiting `/` shows 8 emotion icons. Clicking "Stressed" produces a coping advice card within 5 seconds. The `advice_cards` table gains a new row. The `check_in_sessions` table gains a new row. If OpenAI is disabled, a seeded card is served instead. No dead buttons.
+## Sprint 3 — Admin View
+**Goal:** Builder can see sessions, leads, subscriptions.
+- `/admin` page (basic HTTP basic-auth or secret path)
+- Sessions table: emotion, timestamp, paid/free
+- Leads table: email, source, date
+- Subscriptions table: status, plan, Stripe ID
+**DoD:** All three tables render live data; counts match Supabase dashboard.
 
----
+## Sprint 4 — Lock It Down (Auth + RLS)
+**Goal:** Users own their data; anonymous demo still works for unauthenticated visitors.
+- Supabase Auth (email/magic link)
+- Sign-up / sign-in flow
+- Replace v1 RLS policies with `auth.uid() = user_id` on sessions, leads, subscriptions
+- Subscription status tied to authenticated user
+- Paid badge shown in header when logged in + active
+**DoD:** Two browser sessions — one anon (sees demo, hits paywall), one logged-in paid (no paywall). RLS confirmed in Supabase policy editor.
 
-## Sprint 2 — Lead Capture & Stripe Payment ✅ v1 functional milestone
-**Goal:** App can capture an email and take a real payment.
-
-- [ ] Email capture modal: appears after emotion tap, before full advice revealed
-- [ ] `POST /api/leads` — insert lead row, insert `email_captured` touchpoint
-- [ ] "Unlock Full Access" CTA on advice card (disabled for paid leads, active for free)
-- [ ] `POST /api/checkout` — create Stripe Checkout session server-side, return URL
-- [ ] Stripe webhook `POST /api/webhook/stripe` — verify signature, update `leads.subscription_status = paid`, set `paid_at`, log `payment_completed` touchpoint + audit log
-- [ ] Payment confirmation page `/success` with clear copy
-- [ ] Test with Stripe test card end-to-end
-- [ ] Error state: Stripe failure shows user-friendly message, no DB mutation
-
-**Definition of Done:** A visitor taps Stressed → enters email → clicks Unlock → completes Stripe test checkout → lands on `/success` → `leads` row shows `subscription_status = paid` and a `paid_at` timestamp. The Stripe dashboard shows the test payment. Total flow under 3 minutes.
-
----
-
-## Sprint 3 — Auth & Lock-Down
-**Goal:** Per-user data isolation; paid access enforced server-side.
-
-- [ ] Enable Supabase Auth (magic-link email)
-- [ ] Sign-up / login page `/login`
-- [ ] On login, match `leads.email` to auth user, set `user_id` on existing rows
-- [ ] Replace v1 permissive RLS with owner-scoped policies (`auth.uid() = user_id`)
-- [ ] Personal check-in history page `/history` (auth-gated)
-- [ ] Server-side middleware: paid content checks `leads.subscription_status` from session, not client state
-- [ ] Confirm anonymous demo rows remain intact (seed data unaffected)
-
-**Definition of Done:** Logging in as a paid user shows personal history. Logging in as a free user cannot access paid advice. RLS blocks cross-user reads. Seed demo data still renders for anonymous visitors.
-
----
-
-## Sprint 4 — Admin, Touchpoints & Review Queue
-**Goal:** Builder can see leads, conversions, and manage AI advice quality.
-
-- [ ] Admin route `/admin` (service-role only, env-gated)
-- [ ] Leads table: email, status, paid_at, check-in count
-- [ ] Touchpoints timeline per lead
-- [ ] Advice review queue: cards with `review_status = unreviewed` and confidence < 0.85
-- [ ] Approve / reject buttons update `advice_review_status` + audit log (medium risk — confirm before write)
-- [ ] Top-5 emotions tapped (count from `check_in_sessions`)
-- [ ] Conversion rate: paid / total leads
-
-**Definition of Done:** Admin page loads with real data. Approving a flagged advice card updates the DB and the row disappears from the queue. All actions logged in `audit_logs`.
-
----
+## Sprint 5 — AI Advice Enrichment
+**Goal:** AI-generated alternatives stored alongside seed advice.
+- OpenAI server route generates `ai_body` for each advice row
+- Stores `ai_body`, `ai_body_source`, `ai_body_confidence`, `ai_body_review_status`
+- Admin review queue: approve / reject AI suggestions
+- Approved AI body replaces displayed advice
+**DoD:** At least one emotion shows AI-approved advice; confidence + review_status visible in admin.
 
 ## Gantt (sprint → week)
-| Week | Sprint |
+| Sprint | Week |
 |---|---|
-| 1 | Sprint 1 — DB + Emotion Grid + Advice Engine |
-| 1–2 | Sprint 2 — Lead Capture + Stripe (v1 functional) |
-| 2 | Sprint 3 — Auth + Lock-Down |
-| 3 | Sprint 4 — Admin + Review Queue |
+| 1 — DB + Grid | 1 |
+| 2 — Paywall + Stripe | 1 |
+| 3 — Admin View | 2 |
+| 4 — Lock It Down | 2 |
+| 5 — AI Enrichment | 3+ |

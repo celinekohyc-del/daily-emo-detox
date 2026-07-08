@@ -1,39 +1,39 @@
-# Intelligence Layer
+# Intelligence Layer — Daily Emo Detox
 
 ## Messy Input
-User taps an emotion icon (no free text in v1). Emotion name is the only signal.
+User taps an emotion icon — no free text, no context. The structured signal is: `emotion_id + timestamp + fingerprint`.
 
-## Auto-Structure Schema (what the AI route produces)
+## Auto-Structure Schema (per session event)
 ```json
 {
   "emotion_id": "uuid",
-  "advice_text": "Take 5 slow breaths...",
-  "advice_source": "openai-gpt-4o",
-  "advice_confidence": 0.91,
-  "advice_review_status": "unreviewed"
+  "label": "Overwhelmed",
+  "hour_of_day": 14,
+  "day_of_week": "Tuesday",
+  "tap_index_today": 2,
+  "paid_user": false
 }
 ```
 
 ## Events to Track
-- `emotion_tapped` — which emotion, timestamp, session token
-- `advice_generated` — emotion, model, confidence score
-- `advice_fallback_used` — AI failed, seeded card served
-- `advice_thumbs_up/down` — (later) user feedback
+- `emotion_tapped` — every tap
+- `paywall_shown` — tap limit hit
+- `lead_captured` — email entered
+- `checkout_started` — Stripe redirect
+- `subscription_activated` — webhook confirmed
 
 ## Scoring Rules (rule-based v1)
-- Confidence ≥ 0.85 → auto-display, status = `unreviewed`
-- Confidence < 0.85 → display with flag, status = `unreviewed`, queued for admin review
-- Human-seeded cards → confidence = 1.0, status = `approved`
-- Rejected cards → never served to users
+- **Hot emotion:** emotion tapped >3× in one day → flag as recurring
+- **Conversion lead score:** lead_captured + checkout_started within 10 min = high-intent
+- **Churn risk:** active subscriber with 0 sessions in 7 days = at-risk
 
 ## What Gets Ranked
-- v1: single advice card per emotion (highest-confidence approved card as fallback)
-- Later: rank multiple cards per emotion by thumbs-up rate + recency
+- Advice cards: most-tapped emotions surface first in the grid (sort by session count)
 
 ## v1 vs Later
-| | v1 | Later |
+| Feature | v1 | Later |
 |---|---|---|
-| Input | emotion tap only | emotion + optional free-text journal |
-| Model | GPT-4o, one call | Fine-tuned on feedback data |
-| Confidence | returned by prompt | calibrated against thumbs signal |
-| Review | admin queue | auto-approve if thumbs > 90% |
+| Advice text | Static seed | OpenAI-generated, stored with confidence score |
+| Emotion ranking | Session count | ML-weighted by time-of-day & user history |
+| Personalisation | None | Per-user emotion pattern summary |
+| Mood trend | None | Weekly chart from sessions |

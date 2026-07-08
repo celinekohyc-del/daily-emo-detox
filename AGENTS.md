@@ -1,6 +1,6 @@
 # daily-emo-detox
 
-Daily Emo Detox is a micro-tool where users tap an emotion icon, receive AI-backed coping advice, and unlock unlimited access via a one-time or subscription payment.
+Daily Emo Detox is a micro-SaaS where users tap an emotion icon to instantly receive personalised calm-down advice, with a freemium checkout gate for unlimited access.
 
 ## ⚠️ READ THIS BEFORE WRITING ANY CODE
 A complete, correct plan for this app is already committed in `/docs`. Do **not** start

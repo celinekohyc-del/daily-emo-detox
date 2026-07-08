@@ -1,35 +1,27 @@
-# Test Plan
+# Test Plan — Daily Emo Detox
 
 ## Core Success Scenario (manual)
-1. Open `/` in an incognito browser window.
-2. **Verify:** 8 emotion icon cards are visible. No login prompt.
-3. Click **Stressed**.
-4. **Verify:** Loading spinner appears immediately.
-5. **Verify:** Within 5 seconds an advice card appears with non-empty text.
-6. **Verify:** `advice_cards` table has a new row; `advice_confidence` is populated.
-7. **Verify:** Email capture modal appears.
-8. Enter `test@example.com` and submit.
-9. **Verify:** `leads` row inserted with `subscription_status = free`; touchpoint `email_captured` logged.
-10. Click **Unlock Full Access**.
-11. **Verify:** Redirected to Stripe Checkout (test mode).
-12. Enter Stripe test card `4242 4242 4242 4242`, any future date, any CVC.
-13. Complete payment.
-14. **Verify:** Redirected to `/success` with confirmation copy.
-15. **Verify:** `leads` row now shows `subscription_status = paid` and `paid_at` is not null.
-16. **Verify:** `touchpoints` has `payment_completed` event.
-17. **Verify:** `audit_logs` has `payment_webhook_received` entry.
+1. Open app in incognito — emotion grid renders without login.
+2. Tap "Stressed" → advice card appears → `sessions` row exists in Supabase.
+3. Tap 3 more emotions → on 4th tap, paywall modal appears.
+4. Enter email in modal → `leads` row inserted.
+5. Click "Unlock Full Access" → redirected to Stripe Checkout (test mode).
+6. Complete payment with card `4242 4242 4242 4242` → redirect to app.
+7. Tap any emotion → advice shows with no paywall → `subscriptions` row status = 'active'.
 
-## Empty State
-- Delete all rows from `emotions` (dev only). Visit `/`. **Expect:** empty-state message "No emotions loaded yet" — no crash.
+## Empty / Error Cases
+| Scenario | Expected |
+|---|---|
+| No emotions seeded | Grid shows "No emotions available" message, not a blank page |
+| Advice fetch times out | Card shows "Couldn't load advice — tap to retry" |
+| Stripe Checkout API error | Modal shows "Payment unavailable — try again" with support link |
+| Webhook signature invalid | 400 returned, nothing written to DB, error logged |
+| Email field blank on paywall | Inline validation, form does not submit |
+| User revisits after payment (no login) | Fingerprint checked → paywall skipped for rest of session |
 
-## Error States
-- Set `OPENAI_API_KEY` to an invalid value. Tap an emotion. **Expect:** fallback seeded advice card is served; error toast "Advice loaded from cache"; no 500 shown to user.
-- Submit email capture form with an invalid email. **Expect:** inline validation error; no DB insert.
-- Cancel Stripe Checkout mid-flow. **Expect:** user returned to advice card page; `leads` row remains `free`; no duplicate rows.
-
-## Stripe Webhook
-- Replay a `checkout.session.completed` event via Stripe CLI. **Expect:** `leads` updated to `paid` exactly once (idempotent — replaying does not create duplicate rows).
-
-## Security Checks
-- Inspect browser network tab: confirm `STRIPE_SECRET_KEY` and `OPENAI_API_KEY` are never present in any response or JS bundle.
-- Confirm Stripe webhook returns 400 if signature header is missing or tampered.
+## Regression Checks (each sprint)
+- [ ] Session row written on every tap
+- [ ] Daily tap count resets at midnight UTC
+- [ ] Stripe secret never appears in browser network tab
+- [ ] Admin page not reachable without correct credential
+- [ ] Audit log gains a row for every subscription change
